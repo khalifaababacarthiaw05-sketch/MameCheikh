@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Hacking en cours</title>
+<style>
+  :root { --green:#00ff66; --dim:#0b7a3a; --red:#ff2a2a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; background:#000; overflow:hidden; }
+  body { font-family:"Courier New", ui-monospace, monospace; color:var(--green); }
+
+  canvas#rain { position:fixed; inset:0; width:100%; height:100%; opacity:.35; }
+
+  .screen {
+    position:relative; z-index:1; height:100%;
+    display:flex; flex-direction:column; align-items:center;
+    padding:env(safe-area-inset-top,0) 12px env(safe-area-inset-bottom,0);
+  }
+
+  .title {
+    margin-top:14px; font-size:clamp(22px,7vw,36px); font-weight:700;
+    color:var(--red); text-shadow:0 0 12px var(--red);
+    letter-spacing:2px; text-align:center;
+    animation:blink 1s steps(2,start) infinite;
+  }
+  @keyframes blink { 50% { opacity:.25; } }
+
+  .hacker { width:min(62vw,300px); margin-top:8px; filter:drop-shadow(0 0 18px rgba(0,255,102,.55)); }
+
+  .bar { width:100%; max-width:420px; margin:6px 0 8px; font-size:13px; text-align:center; }
+  .track { height:8px; border:1px solid var(--green); margin-top:4px; }
+  .fill { height:100%; width:0; background:var(--green); box-shadow:0 0 8px var(--green); }
+
+  /* Les nouvelles lignes arrivent en haut et descendent vers le bas de l'écran */
+  .log {
+    flex:1; width:100%; max-width:520px; min-height:0; overflow:hidden;
+    display:flex; flex-direction:column; justify-content:flex-start;
+    font-size:12px; line-height:1.45; padding-bottom:8px;
+    -webkit-mask-image:linear-gradient(#000 70%, transparent);
+            mask-image:linear-gradient(#000 70%, transparent);
+  }
+  .log div { white-space:nowrap; overflow:hidden; text-overflow:clip; }
+  .log .warn { color:var(--red); }
+  .log .ok { color:#fff; }
+
+  @media (prefers-reduced-motion: reduce) { .title { animation:none; } }
+</style>
+</head>
+<body>
+<canvas id="rain"></canvas>
+
+<main class="screen">
+  <h1 class="title">HACKING EN COURS</h1>
+
+  <svg class="hacker" viewBox="0 0 200 220" role="img" aria-label="Hacker masqué en capuche">
+    <!-- capuche -->
+    <path d="M100 8 C45 8 18 55 18 110 L18 215 L182 215 L182 110 C182 55 155 8 100 8 Z" fill="#050f08" stroke="#00ff66" stroke-width="3"/>
+    <path d="M100 30 C62 30 44 66 44 108 C44 150 68 178 100 178 C132 178 156 150 156 108 C156 66 138 30 100 30 Z" fill="#000"/>
+    <!-- masque -->
+    <path d="M100 38 C70 38 56 68 56 104 C56 142 76 168 100 168 C124 168 144 142 144 104 C144 68 130 38 100 38 Z" fill="#e8f5ec" stroke="#00ff66" stroke-width="2"/>
+    <!-- sourcils -->
+    <path d="M66 84 Q80 74 92 84" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+    <path d="M108 84 Q120 74 134 84" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+    <!-- yeux -->
+    <path d="M68 96 Q80 88 92 98 Q80 104 68 96 Z" fill="#111"/>
+    <path d="M108 98 Q120 88 132 96 Q120 104 108 98 Z" fill="#111"/>
+    <circle cx="80" cy="96" r="2.2" fill="#00ff66"/><circle cx="120" cy="96" r="2.2" fill="#00ff66"/>
+    <!-- joues -->
+    <path d="M70 122 Q76 130 84 124" fill="none" stroke="#9bb8a3" stroke-width="2"/>
+    <path d="M116 124 Q124 130 130 122" fill="none" stroke="#9bb8a3" stroke-width="2"/>
+    <!-- moustache -->
+    <path d="M72 128 Q86 118 100 130 Q114 118 128 128 Q114 134 100 138 Q86 134 72 128 Z" fill="#111"/>
+    <!-- bouc -->
+    <path d="M94 146 Q100 166 106 146 Q100 150 94 146 Z" fill="#111"/>
+    <!-- sourire -->
+    <path d="M78 140 Q100 156 122 140" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- épaules -->
+    <path d="M18 215 Q40 185 70 180 L130 180 Q160 185 182 215 Z" fill="#050f08" stroke="#00ff66" stroke-width="2"/>
+  </svg>
+
+  <div class="bar">
+    <span id="pct">0%</span> — extraction des données…
+    <div class="track"><div class="fill" id="fill"></div></div>
+  </div>
+
+  <div class="log" id="log" aria-live="off"></div>
+</main>
+
+<script>
+/* ---------- Pluie de caractères (fond) ---------- */
+const cv = document.getElementById('rain'), cx = cv.getContext('2d');
+let cols, drops;
+function size() {
+  cv.width = innerWidth; cv.height = innerHeight;
+  cols = Math.floor(cv.width / 14); drops = Array(cols).fill(0).map(() => Math.random() * -50);
+}
+size(); addEventListener('resize', size);
+const chars = '01アイウエオカキクケコサシスセソ#$%&<>/\\';
+setInterval(() => {
+  cx.fillStyle = 'rgba(0,0,0,.12)'; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.fillStyle = '#00ff66'; cx.font = '14px monospace';
+  drops.forEach((y, i) => {
+    cx.fillText(chars[Math.floor(Math.random() * chars.length)], i * 14, y * 14);
+    drops[i] = (y * 14 > cv.height && Math.random() > .975) ? 0 : y + 1;
+  });
+}, 50);
+
+/* ---------- Texte "Hacking en cours" qui défile de haut en bas ---------- */
+const log = document.getElementById('log');
+const hex = n => Array.from({length:n}, () => Math.floor(Math.random()*16).toString(16)).join('');
+const ip = () => [1,2,3,4].map(() => Math.floor(Math.random()*255)).join('.');
+const templates = [
+  () => `[+] Hacking en cours... ${ip()}`,
+  () => `[*] Connexion au serveur ${ip()}:${Math.floor(Math.random()*9000+1000)}`,
+  () => `[+] Contournement du pare-feu... OK`,
+  () => `[*] Injection du payload 0x${hex(8)}`,
+  () => `[!] Accès root obtenu`,
+  () => `[+] Copie des fichiers : ${hex(6)}.dat`,
+  () => `[*] Déchiffrement des mots de passe... ${Math.floor(Math.random()*100)}%`,
+  () => `[+] Téléchargement de la base de données...`,
+  () => `[!] Alerte : traçage détecté, brouillage activé`,
+  () => `[+] Hacking en cours... 0x${hex(12)}`
+];
+function addLine() {
+  const t = templates[Math.floor(Math.random() * templates.length)]();
+  const d = document.createElement('div');
+  d.textContent = t;
+  if (t.startsWith('[!]')) d.className = 'warn';
+  else if (t.includes('OK')) d.className = 'ok';
+  log.prepend(d);                       // nouvelle ligne en haut, les anciennes descendent
+  while (log.children.length > 60) log.lastChild.remove();
+}
+setInterval(addLine, 140);
+
+/* ---------- Barre de progression (boucle) ---------- */
+let p = 0;
+const fill = document.getElementById('fill'), pct = document.getElementById('pct');
+setInterval(() => {
+  p += Math.random() * 3;
+  if (p >= 100) p = 0;
+  fill.style.width = p + '%'; pct.textContent = Math.floor(p) + '%';
+}, 200);
+</script>
+</body>
+</html>
